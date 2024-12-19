@@ -53,6 +53,9 @@ struct RunConfig
   // Path to JSON voice config file
   filesystem::path modelConfigPath;
 
+  // The sentence you want to convert to tts
+  string sentence;
+
   // Type of output to produce.
   // Default is to write a WAV file in the current directory.
   OutputType outputType = OUTPUT_DIRECTORY;
@@ -98,14 +101,19 @@ struct RunConfig
   bool useCuda = false;
 };
 
-string modelPath;
-void parseArgsFromJson(const json &inputJson, RunConfig &runConfig);
-void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
-                   condition_variable &cvAudio, bool &audioReady,
-                   bool &audioFinished);
 
-piper::PiperConfig piperConfig;
-piper::Voice voice;
+try {
+  string modelPath;
+  void parseArgsFromJson(const json &inputJson, RunConfig &runConfig);
+  void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
+                    condition_variable &cvAudio, bool &audioReady,
+                    bool &audioFinished);
+
+  piper::PiperConfig piperConfig;
+  piper::Voice voice;
+} catch (const std::exception &e) {
+  spdlog::error("Error processing request: {}", e.what());
+}
 
 int main()
 {
@@ -169,6 +177,89 @@ int main()
       #endif
       #endif
 
+      if (voice.phonemizeConfig.phonemeType == piper::eSpeakPhonemes) {
+        spdlog::debug("Voice uses eSpeak phonemes ({})",
+                      voice.phonemizeConfig.eSpeak.voice);
+
+        if (runConfig.eSpeakDataPath) {
+          // User provided path
+          piperConfig.eSpeakDataPath = runConfig.eSpeakDataPath.value().string();
+        } else {
+          // Assume next to piper executable
+          piperConfig.eSpeakDataPath =
+              std::filesystem::absolute(
+                  exePath.parent_path().append("espeak-ng-data"))
+                  .string();
+
+          spdlog::debug("espeak-ng-data directory is expected at {}",
+                        piperConfig.eSpeakDataPath);
+        }
+      } else {
+        // Not using eSpeak
+        piperConfig.useESpeak = false;
+      }
+
+      // Enable libtashkeel for Arabic
+      if (voice.phonemizeConfig.eSpeak.voice == "ar") {
+        piperConfig.useTashkeel = true;
+        if (runConfig.tashkeelModelPath) {
+          // User provided path
+          piperConfig.tashkeelModelPath =
+              runConfig.tashkeelModelPath.value().string();
+        } else {
+          // Assume next to piper executable
+          piperConfig.tashkeelModelPath =
+              std::filesystem::absolute(
+                  exePath.parent_path().append("libtashkeel_model.ort"))
+                  .string();
+
+          spdlog::debug("libtashkeel model is expected at {}",
+                        piperConfig.tashkeelModelPath.value());
+        }
+      }
+      
+      piper::initialize(piperConfig);
+
+      
+      // Scales
+      if (runConfig.noiseScale) {
+        voice.synthesisConfig.noiseScale = runConfig.noiseScale.value();
+      }
+
+      if (runConfig.lengthScale) {
+        voice.synthesisConfig.lengthScale = runConfig.lengthScale.value();
+      }
+
+      if (runConfig.noiseW) {
+        voice.synthesisConfig.noiseW = runConfig.noiseW.value();
+      }
+
+      if (runConfig.sentenceSilenceSeconds) {
+        voice.synthesisConfig.sentenceSilenceSeconds =
+            runConfig.sentenceSilenceSeconds.value();
+      }
+
+      if (runConfig.phonemeSilenceSeconds) {
+        if (!voice.synthesisConfig.phonemeSilenceSeconds) {
+          // Overwrite
+          voice.synthesisConfig.phonemeSilenceSeconds =
+              runConfig.phonemeSilenceSeconds;
+        } else {
+          // Merge
+          for (const auto &[phoneme, silenceSeconds] :
+              *runConfig.phonemeSilenceSeconds) {
+            voice.synthesisConfig.phonemeSilenceSeconds->try_emplace(
+                phoneme, silenceSeconds);
+          }
+        }
+
+      } // if phonemeSilenceSeconds
+
+      if (runConfig.outputType == OUTPUT_DIRECTORY) {
+        runConfig.outputPath = filesystem::absolute(runConfig.outputPath.value());
+        spdlog::info("Output directory: {}", runConfig.outputPath.value().string());
+      }
+
       // Return input body as json format
       res.set_content(req.body, "application/json");
     } catch (const std::exception &e) {
@@ -190,6 +281,10 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
   if (inputJson.contains("modelPath"))
   {
     runConfig.modelPath = inputJson["modelPath"].get<std::string>();
+  }
+  if (inputJson.contains("sentence"))
+  {
+    runConfig.modelPath = inputJson["sentence"].get<std::string>();
   }
   if (inputJson.contains("modelConfigPath"))
   {
