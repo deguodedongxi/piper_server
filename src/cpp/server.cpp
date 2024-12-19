@@ -281,6 +281,7 @@ int main(int argc, char *argv[])
         // Return output path to the client as json
         json outputJson;
         outputJson["outputPath"] = runConfig.outputPath.value().string();
+        outputJson["outputFile"] = runConfig.outputFile;
         res.set_content(outputJson.dump(), "application/json");
       }
       else if (runConfig.outputType == OUTPUT_STDOUT) {
