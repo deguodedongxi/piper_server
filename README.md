@@ -20,7 +20,6 @@ Our goal is to support Home Assistant and the [Year of Voice](https://www.home-a
 
 [Download voices](VOICES.md) for the supported languages:
 
-
 * Arabic (ar_JO)
 * Catalan (ca_ES)
 * Czech (cs_CZ)
