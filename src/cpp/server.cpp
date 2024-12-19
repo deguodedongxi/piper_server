@@ -45,16 +45,21 @@ enum OutputType
   OUTPUT_RAW
 };
 
-struct RunConfig
-{
+struct InitConfig {
+  optional<string> port = "8080";
+};
+
+struct RunConfig {
+  // The sentence you want to convert to tts
+  string sentence;
+
+  string outputFile;
+
   // Path to .onnx voice file
   filesystem::path modelPath;
 
   // Path to JSON voice config file
   filesystem::path modelConfigPath;
-
-  // The sentence you want to convert to tts
-  string sentence;
 
   // Type of output to produce.
   // Default is to write a WAV file in the current directory.
@@ -101,14 +106,19 @@ struct RunConfig
   bool useCuda = false;
 };
 
-
+void parseStartupArgs(int argc, char *argv[], InitConfig &initConfig);
 void parseArgsFromJson(const json &inputJson, RunConfig &runConfig);
-void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
-                  condition_variable &cvAudio, bool &audioReady,
-                  bool &audioFinished);
+// void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
+//                   condition_variable &cvAudio, bool &audioReady,
+//                   bool &audioFinished);
 
-int main()
+int main(int argc, char *argv[])
 {
+  spdlog::set_default_logger(spdlog::stderr_color_st("piper"));
+
+  InitConfig initConfig;
+  parseStartupArgs(argc, argv, initConfig);
+
   // Create an HTTP server instance
   httplib::Server server;
 
@@ -116,6 +126,7 @@ int main()
   piper::PiperConfig piperConfig;
   piper::Voice voice;
 
+  spdlog::info("Starting Piper TTS Server");
 
   // Define a GET route at "/"
   server.Get("/", [](const httplib::Request &req, httplib::Response &res)
@@ -126,8 +137,8 @@ int main()
   { 
     try {
       RunConfig runConfig;
-      // Log Body
-      spdlog::debug("Request body: {}", req.body);
+      // // Log Body
+      // std::cout << "Request body: " << req.body << std::endl;
       parseArgsFromJson(json::parse(req.body), runConfig);
 
       #ifdef _WIN32
@@ -135,24 +146,17 @@ int main()
         SetConsoleOutputCP(CP_UTF8);
       #endif
 
-      spdlog::debug("Loading voice from {} (config={})",
-                    runConfig.modelPath.string(),
-                    runConfig.modelConfigPath.string());
-
       if (modelPath != runConfig.modelPath.string())
       {
+        spdlog::debug("Loading voice from {} (config={})",
+                      runConfig.modelPath.string(),
+                      runConfig.modelConfigPath.string());
         auto startTime = chrono::steady_clock::now();
         modelPath = runConfig.modelPath.string();
         piper::loadVoice(piperConfig, runConfig.modelPath.string(),
                     runConfig.modelConfigPath.string(), voice, runConfig.speakerId,
                     runConfig.useCuda);
         auto endTime = chrono::steady_clock::now();
-        spdlog::info("Loaded voice in {} second(s)",
-                    chrono::duration<double>(endTime - startTime).count());
-      }
-      else
-      {
-        spdlog::info("Voice already loaded");
       }
 
       // Get the path to the piper executable so we can locate espeak-ng-data, etc.
@@ -254,41 +258,142 @@ int main()
 
       } // if phonemeSilenceSeconds
 
-      if (runConfig.outputType == OUTPUT_DIRECTORY) {
-        runConfig.outputPath = filesystem::absolute(runConfig.outputPath.value());
-        spdlog::info("Output directory: {}", runConfig.outputPath.value().string());
+
+      piper::SynthesisResult result;
+      if (runConfig.outputType == OUTPUT_DIRECTORY || runConfig.outputType == OUTPUT_FILE) {
+        // Output audio to automatically-named WAV file in a directory
+        filesystem::path outputPath = runConfig.outputPath.value();
+        outputPath.append(runConfig.outputFile);
+
+        // log name
+        spdlog::debug("Output file: {}", outputPath.string());
+
+        ofstream audioFile(outputPath.string(), ios::binary);
+        piper::textToWavFile(piperConfig, voice, runConfig.sentence, audioFile, result);
+        // Return output path to the client as json
+        json outputJson;
+        outputJson["outputPath"] = runConfig.outputPath.value().string();
+        res.set_content(outputJson.dump(), "application/json");
+      }
+      else if (runConfig.outputType == OUTPUT_STDOUT) {
+        // Output audio to stdout
+        piper::textToWavFile(piperConfig, voice, runConfig.sentence, cout, result);
+
+        res.set_content("Audio output to stdout", "text/plain");
+      }
+      else if (runConfig.outputType == OUTPUT_RAW) {
+        // Raw output to stdout
+        stringstream buffer;
+        piper::textToWavFile(piperConfig, voice, runConfig.sentence, buffer, result);
+        res.set_content(buffer.str(), "audio/wav");
+      }
+      else {
+        throw runtime_error("Invalid output type");
       }
 
-      // Return input body as json format
-      res.set_content(req.body, "application/json");
+      spdlog::info("Real-time factor: {} (infer={} sec, audio={} sec)",
+                  result.realTimeFactor, result.inferSeconds,
+                  result.audioSeconds);
+      
+      
     } catch (const std::exception &e) {
-      spdlog::error("Error processing request: {}", e.what());
+      std::cout << "Error: " << e.what() << std::endl;
       res.status = 500;
       res.set_content("Internal Server Error", "text/plain");
     }
   });
 
   // Start the server on port 8080
-  std::cout << "Server is running on http://localhost:8080\n";
-  server.listen("0.0.0.0", 8080);
+  std::cout << "Server is running on http://localhost:" << initConfig.port.value() << std::endl;
+  server.listen("0.0.0.0", stoi(initConfig.port.value()));
 
   return 0;
 }
 
+
+void printUsage(char *argv[]) {
+  cerr << endl;
+  cerr << "usage: " << argv[0] << " [options]" << endl;
+  cerr << endl;
+  cerr << "options:" << endl;
+  cerr << "   -h        --help              show this message and exit" << endl;
+  cerr << "   -p  PORT  --port       PORT   port to use for the server (default: 8080)" << endl;
+  cerr << "   -q       --quiet              disable logging" << endl;
+  cerr << "   --debug                       print DEBUG messages to the console" << endl;
+  cerr << endl;
+}
+
+void ensureArg(int argc, char *argv[], int argi) {
+  if ((argi + 1) >= argc) {
+    printUsage(argv);
+    exit(0);
+  }
+}
+
+// Parse command-line arguments
+void parseStartupArgs(int argc, char *argv[], InitConfig &initConfig) {
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+
+    if (arg == "--port" || arg == "-p") {
+      ensureArg(argc, argv, i);
+      initConfig.port = argv[++i];
+    }
+    else if (arg == "--debug") {
+      // Set DEBUG logging
+      spdlog::set_level(spdlog::level::debug);
+    }
+    else if (arg == "-q" || arg == "--quiet") {
+      // diable logging
+      spdlog::set_level(spdlog::level::off);
+    }
+    else if (arg == "-h" || arg == "--help") {
+      printUsage(argv);
+      exit(0);
+    }
+  }
+}
+
 void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
 {
-  if (inputJson.contains("modelPath"))
-  {
-    runConfig.modelPath = inputJson["modelPath"].get<std::string>();
-  }
   if (inputJson.contains("sentence"))
   {
     runConfig.sentence = inputJson["sentence"].get<std::string>();
   }
+  if (inputJson.contains("modelPath"))
+  {
+    runConfig.modelPath = inputJson["modelPath"].get<std::string>();
+  }
+
+  // Check if model path exists
+  if (!filesystem::exists(runConfig.modelPath))
+  {
+    throw std::runtime_error("Model path does not exist: " + runConfig.modelPath.string());
+  }
+
   if (inputJson.contains("modelConfigPath"))
   {
     runConfig.modelConfigPath = inputJson["modelConfigPath"].get<std::string>();
   }
+  else {
+    runConfig.modelConfigPath = runConfig.modelPath.string() + ".json";
+  }
+
+  // Verify model config path exists
+  if (!filesystem::exists(runConfig.modelConfigPath))
+  {
+    throw std::runtime_error("Model config path does not exist: " + runConfig.modelConfigPath.string());
+  }
+
+  if (inputJson.contains("output_file"))
+  {
+    runConfig.outputFile = inputJson["output_file"].get<std::string>() + ".wav";
+  }
+  else {
+    //TODO: generate random uuid for output file 
+    runConfig.outputFile = "output.wav";
+  }
+
   if (inputJson.contains("outputType"))
   {
     std::string outputTypeStr = inputJson["outputType"].get<std::string>();
@@ -313,6 +418,17 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
   {
     runConfig.outputPath = inputJson["outputPath"].get<std::string>();
   }
+  else {
+    runConfig.outputPath = filesystem::path(".");
+  }
+
+  // Check if output path exists
+  if (!filesystem::exists(runConfig.outputPath.value()))
+  {
+    throw std::runtime_error("Output path does not exist: " + runConfig.outputPath.value().string());
+  }
+
+
   if (inputJson.contains("speakerId"))
   {
     runConfig.speakerId = inputJson["speakerId"].get<piper::SpeakerId>();
