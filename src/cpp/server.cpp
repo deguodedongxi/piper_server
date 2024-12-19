@@ -107,18 +107,18 @@ void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
                   condition_variable &cvAudio, bool &audioReady,
                   bool &audioFinished);
 
-try {
-  string modelPath;
-  piper::PiperConfig piperConfig;
-  piper::Voice voice;
-} catch (const std::exception &e) {
-  spdlog::error("Error processing request: {}", e.what());
-}
-
 int main()
 {
   // Create an HTTP server instance
   httplib::Server server;
+
+  try {
+    string modelPath;
+    piper::PiperConfig piperConfig;
+    piper::Voice voice;
+  } catch (const std::exception &e) {
+    spdlog::error("Error processing request: {}", e.what());
+  }
 
   // Define a GET route at "/"
   server.Get("/", [](const httplib::Request &req, httplib::Response &res)
