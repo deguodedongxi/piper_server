@@ -39,6 +39,7 @@ if(NOT DEFINED FMT_DIR)
     CMAKE_ARGS -DFMT_TEST:BOOL=OFF  # Don't build all the tests
   )
   add_dependencies(piper fmt_external)
+  add_dependencies(piper_server fmt_external)
   add_dependencies(test_piper fmt_external)
 endif()
 
@@ -54,6 +55,7 @@ if(NOT DEFINED SPDLOG_DIR)
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${SPDLOG_DIR}
   )
   add_dependencies(piper spdlog_external)
+  add_dependencies(piper_server spdlog_external)
   add_dependencies(test_piper spdlog_external)
 endif()
 
@@ -68,6 +70,7 @@ if(NOT DEFINED PIPER_PHONEMIZE_DIR)
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PIPER_PHONEMIZE_DIR}
   )
   add_dependencies(piper piper_phonemize_external)
+  add_dependencies(piper_server piper_phonemize_external)
   add_dependencies(test_piper piper_phonemize_external)
 endif()
 
@@ -78,6 +81,7 @@ if((NOT MSVC) AND (NOT APPLE))
   string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra -Wl,-rpath,'$ORIGIN'")
   string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
   target_link_libraries(piper -static-libgcc -static-libstdc++)
+  target_link_libraries(piper_server -static-libgcc -static-libstdc++)
 
   set(PIPER_EXTRA_LIBRARIES "pthread")
 endif()
@@ -104,6 +108,30 @@ target_include_directories(piper PUBLIC
 )
 
 target_compile_definitions(piper PUBLIC _PIPER_VERSION=${piper_version})
+
+# Declare server executable
+target_link_libraries(piper_server
+  fmt
+  spdlog
+  espeak-ng
+  piper_phonemize
+  onnxruntime
+  ${PIPER_EXTRA_LIBRARIES}
+)
+
+target_link_directories(piper_server PUBLIC
+  ${FMT_DIR}/lib
+  ${SPDLOG_DIR}/lib
+  ${PIPER_PHONEMIZE_DIR}/lib
+)
+
+target_include_directories(piper_server PUBLIC
+  ${FMT_DIR}/include
+  ${SPDLOG_DIR}/include
+  ${PIPER_PHONEMIZE_DIR}/include
+)
+
+target_compile_definitions(piper_server PUBLIC _PIPER_VERSION=${piper_version})
 
 # ---- Declare test ----
 include(CTest)
@@ -171,3 +199,40 @@ install(
   FILES ${PIPER_PHONEMIZE_DIR}/share/libtashkeel_model.ort
   DESTINATION ${CMAKE_INSTALL_PREFIX}
 )
+
+# ---- Declare install targets for server----
+
+install(
+  TARGETS piper_server
+  DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+# Dependencies
+install(
+  DIRECTORY ${PIPER_PHONEMIZE_DIR}/bin/
+  DESTINATION ${CMAKE_INSTALL_PREFIX}
+  USE_SOURCE_PERMISSIONS  # keep +x
+  FILES_MATCHING
+  PATTERN "piper_phonemize"
+  PATTERN "espeak-ng"
+  PATTERN "*.dll"
+)
+
+install(
+  DIRECTORY ${PIPER_PHONEMIZE_DIR}/lib/
+  DESTINATION ${CMAKE_INSTALL_PREFIX}
+  FILES_MATCHING
+  PATTERN "*.dll"
+  PATTERN "*.so*"
+)
+
+install(
+  DIRECTORY ${PIPER_PHONEMIZE_DIR}/share/espeak-ng-data
+  DESTINATION ${CMAKE_INSTALL_PREFIX}
+)
+
+install(
+  FILES ${PIPER_PHONEMIZE_DIR}/share/libtashkeel_model.ort
+  DESTINATION ${CMAKE_INSTALL_PREFIX}
+)
+
+
