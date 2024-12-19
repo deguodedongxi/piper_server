@@ -102,13 +102,13 @@ struct RunConfig
 };
 
 
+void parseArgsFromJson(const json &inputJson, RunConfig &runConfig);
+void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
+                  condition_variable &cvAudio, bool &audioReady,
+                  bool &audioFinished);
+
 try {
   string modelPath;
-  void parseArgsFromJson(const json &inputJson, RunConfig &runConfig);
-  void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
-                    condition_variable &cvAudio, bool &audioReady,
-                    bool &audioFinished);
-
   piper::PiperConfig piperConfig;
   piper::Voice voice;
 } catch (const std::exception &e) {
