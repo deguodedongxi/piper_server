@@ -104,6 +104,9 @@ void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
                    condition_variable &cvAudio, bool &audioReady,
                    bool &audioFinished);
 
+piper::PiperConfig piperConfig;
+piper::Voice voice;
+
 int main()
 {
   // Create an HTTP server instance
@@ -116,17 +119,14 @@ int main()
   // Define a POST route at "/echo"
   server.Post("/tts", [](const httplib::Request &req, httplib::Response &res)
   { 
-    RunConfig runConfig;
-    parseArgsFromJson(json::parse(req.body), runConfig);
+    try {
+      RunConfig runConfig;
+      parseArgsFromJson(json::parse(req.body), runConfig);
 
-    
-    #ifdef _WIN32
-      // Required on Windows to show IPA symbols
-      SetConsoleOutputCP(CP_UTF8);
-    #endif
-
-      piper::PiperConfig piperConfig;
-      piper::Voice voice;
+      #ifdef _WIN32
+        // Required on Windows to show IPA symbols
+        SetConsoleOutputCP(CP_UTF8);
+      #endif
 
       spdlog::debug("Loading voice from {} (config={})",
                     runConfig.modelPath.string(),
@@ -148,32 +148,34 @@ int main()
         spdlog::info("Voice already loaded");
       }
 
-  // Get the path to the piper executable so we can locate espeak-ng-data, etc.
-  // next to it.
-#ifdef _MSC_VER
-  auto exePath = []() {
-    wchar_t moduleFileName[MAX_PATH] = {0};
-    GetModuleFileNameW(nullptr, moduleFileName, std::size(moduleFileName));
-    return filesystem::path(moduleFileName);
-  }();
-#else
-#ifdef __APPLE__
-  auto exePath = []() {
-    char moduleFileName[PATH_MAX] = {0};
-    uint32_t moduleFileNameSize = std::size(moduleFileName);
-    _NSGetExecutablePath(moduleFileName, &moduleFileNameSize);
-    return filesystem::path(moduleFileName);
-  }();
-#else
-  auto exePath = filesystem::canonical("/proc/self/exe");
-#endif
-#endif
+      // Get the path to the piper executable so we can locate espeak-ng-data, etc.
+      // next to it.
+      #ifdef _MSC_VER
+        auto exePath = []() {
+          wchar_t moduleFileName[MAX_PATH] = {0};
+          GetModuleFileNameW(nullptr, moduleFileName, std::size(moduleFileName));
+          return filesystem::path(moduleFileName);
+        }();
+      #else
+      #ifdef __APPLE__
+        auto exePath = []() {
+          char moduleFileName[PATH_MAX] = {0};
+          uint32_t moduleFileNameSize = std::size(moduleFileName);
+          _NSGetExecutablePath(moduleFileName, &moduleFileNameSize);
+          return filesystem::path(moduleFileName);
+        }();
+      #else
+        auto exePath = filesystem::canonical("/proc/self/exe");
+      #endif
+      #endif
 
-
-    // Return input body as json format
-    res.set_content(req.body, "application/json");
-
-  
+      // Return input body as json format
+      res.set_content(req.body, "application/json");
+    } catch (const std::exception &e) {
+      spdlog::error("Error processing request: {}", e.what());
+      res.status = 500;
+      res.set_content("Internal Server Error", "text/plain");
+    }
   });
 
   // Start the server on port 8080
