@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
     try {
       RunConfig runConfig;
       // // Log Body
-      std::cout << "Request body: " << req.body << std::endl;
+      // std::cout << "Request body: " << req.body << std::endl;
       parseArgsFromJson(json::parse(req.body), runConfig);
 
       #ifdef _WIN32
@@ -146,26 +146,26 @@ int main(int argc, char *argv[])
         SetConsoleOutputCP(CP_UTF8);
       #endif
 
-      std::cout << "Model Path: " << runConfig.modelPath << std::endl;
-      std::cout << "Sentence: " << runConfig.sentence << std::endl;
-      std::cout << "Output Path: " << runConfig.outputPath.value().string() << std::endl;
-      std::cout << "Use CUDA: " << runConfig.useCuda << std::endl;
+      // std::cout << "Model Path: " << runConfig.modelPath << std::endl;
+      // std::cout << "Sentence: " << runConfig.sentence << std::endl;
+      // std::cout << "Output Path: " << runConfig.outputPath.value().string() << std::endl;
+      // std::cout << "Use CUDA: " << runConfig.useCuda << std::endl;
 
       if (modelPath != runConfig.modelPath.string())
       {
         auto startTime = chrono::steady_clock::now();
         modelPath = runConfig.modelPath.string();
-        std::cout << "Loading voice from " << runConfig.modelPath.string() << " (config=" << runConfig.modelConfigPath.string() << ")" << std::endl;
+        // std::cout << "Loading voice from " << runConfig.modelPath.string() << " (config=" << runConfig.modelConfigPath.string() << ")" << std::endl;
         piper::loadVoice(piperConfig, runConfig.modelPath.string(),
                     runConfig.modelConfigPath.string(), voice, runConfig.speakerId,
                     runConfig.useCuda);
         auto endTime = chrono::steady_clock::now();
-        std::cout << "Loaded onnx model in " << std::chrono::duration<double>(endTime - startTime).count() << " second(s)" << std::endl;
+        // std::cout << "Loaded onnx model in " << std::chrono::duration<double>(endTime - startTime).count() << " second(s)" << std::endl;
       }
-      else
-      {
-        std::cout << "Model already loaded" << std::endl;
-      }
+      // else
+      // {
+      //   std::cout << "Model already loaded" << std::endl;
+      // }
 
       // Get the path to the piper executable so we can locate espeak-ng-data, etc.
       // next to it.
@@ -313,7 +313,8 @@ int main(int argc, char *argv[])
   });
 
   // Start the server on port 8080
-  std::cout << "Server is running on http://localhost:" << initConfig.port.value() << std::endl;
+  spdlog::info("Server is running on http://localhost:{}", initConfig.port.value());
+  // std::cout << "Server is running on http://localhost:" << initConfig.port.value() << std::endl;
   server.listen("0.0.0.0", stoi(initConfig.port.value()));
 
   return 0;
@@ -380,9 +381,9 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
     std::cout << "Model path does not exist: " << runConfig.modelPath.string() << std::endl;
     throw std::runtime_error("Model path does not exist: " + runConfig.modelPath.string());
   }
-  else {
-    std::cout << "Model path exists: " << runConfig.modelPath.string() << std::endl;
-  }
+  // else {
+  //   std::cout << "Model path exists: " << runConfig.modelPath.string() << std::endl;
+  // }
 
   if (inputJson.contains("modelConfigPath"))
   {
@@ -398,9 +399,9 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
     std::cout << "Model config path does not exist: " << runConfig.modelConfigPath.string() << std::endl;
     throw std::runtime_error("Model config path does not exist: " + runConfig.modelConfigPath.string());
   }
-  else {
-    std::cout << "Model config path exists: " << runConfig.modelConfigPath.string() << std::endl;
-  }
+  // else {
+  //   std::cout << "Model config path exists: " << runConfig.modelConfigPath.string() << std::endl;
+  // }
 
   if (inputJson.contains("output_file"))
   {
@@ -445,9 +446,9 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
     std::cout << "Output path does not exist: " << runConfig.outputPath.value().string() << std::endl;
     throw std::runtime_error("Output path does not exist: " + runConfig.outputPath.value().string());
   }
-  else {
-    std::cout << "Output path exists: " << runConfig.outputPath.value().string() << std::endl;
-  }
+  // else {
+  //   std::cout << "Output path exists: " << runConfig.outputPath.value().string() << std::endl;
+  // }
 
 
 
