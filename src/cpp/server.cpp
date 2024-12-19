@@ -112,23 +112,22 @@ int main()
   // Create an HTTP server instance
   httplib::Server server;
 
-  try {
-    string modelPath;
-    piper::PiperConfig piperConfig;
-    piper::Voice voice;
-  } catch (const std::exception &e) {
-    spdlog::error("Error processing request: {}", e.what());
-  }
+  std::string modelPath;
+  piper::PiperConfig piperConfig;
+  piper::Voice voice;
+
 
   // Define a GET route at "/"
   server.Get("/", [](const httplib::Request &req, httplib::Response &res)
              { res.set_content("Hello, World! This is a GET response.", "text/plain"); });
 
   // Define a POST route at "/echo"
-  server.Post("/tts", [](const httplib::Request &req, httplib::Response &res)
+  server.Post("/tts", [&modelPath, &piperConfig, &voice](const httplib::Request &req, httplib::Response &res)
   { 
     try {
       RunConfig runConfig;
+      // Log Body
+      spdlog::debug("Request body: {}", req.body);
       parseArgsFromJson(json::parse(req.body), runConfig);
 
       #ifdef _WIN32
@@ -284,7 +283,7 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
   }
   if (inputJson.contains("sentence"))
   {
-    runConfig.modelPath = inputJson["sentence"].get<std::string>();
+    runConfig.sentence = inputJson["sentence"].get<std::string>();
   }
   if (inputJson.contains("modelConfigPath"))
   {
