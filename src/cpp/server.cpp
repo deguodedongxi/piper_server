@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
     try {
       RunConfig runConfig;
       // // Log Body
-      // std::cout << "Request body: " << req.body << std::endl;
+      std::cout << "Request body: " << req.body << std::endl;
       parseArgsFromJson(json::parse(req.body), runConfig);
 
       #ifdef _WIN32
@@ -146,17 +146,25 @@ int main(int argc, char *argv[])
         SetConsoleOutputCP(CP_UTF8);
       #endif
 
+      std::cout << "Model Path: " << runConfig.modelPath << std::endl;
+      std::cout << "Sentence: " << runConfig.sentence << std::endl;
+      std::cout << "Output Path: " << runConfig.outputPath.value().string() << std::endl;
+      std::cout << "Use CUDA: " << runConfig.useCuda << std::endl;
+
       if (modelPath != runConfig.modelPath.string())
       {
-        spdlog::debug("Loading voice from {} (config={})",
-                      runConfig.modelPath.string(),
-                      runConfig.modelConfigPath.string());
         auto startTime = chrono::steady_clock::now();
         modelPath = runConfig.modelPath.string();
+        std::cout << "Loading voice from " << runConfig.modelPath.string() << " (config=" << runConfig.modelConfigPath.string() << ")" << std::endl;
         piper::loadVoice(piperConfig, runConfig.modelPath.string(),
                     runConfig.modelConfigPath.string(), voice, runConfig.speakerId,
                     runConfig.useCuda);
         auto endTime = chrono::steady_clock::now();
+        std::cout << "Loaded onnx model in " << std::chrono::duration<double>(endTime - startTime).count() << " second(s)" << std::endl;
+      }
+      else
+      {
+        std::cout << "Model already loaded" << std::endl;
       }
 
       // Get the path to the piper executable so we can locate espeak-ng-data, etc.
@@ -317,7 +325,7 @@ void printUsage(char *argv[]) {
   cerr << endl;
   cerr << "options:" << endl;
   cerr << "   -h        --help              show this message and exit" << endl;
-  cerr << "   -p  PORT  --port       PORT   port to use for the server (default: 8080)" << endl;
+  cerr << "   -p  PORT  --port       PORT  port to use for the server (default: 8080)" << endl;
   cerr << "   -q       --quiet              disable logging" << endl;
   cerr << "   --debug                       print DEBUG messages to the console" << endl;
   cerr << endl;
@@ -368,7 +376,11 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
   // Check if model path exists
   if (!filesystem::exists(runConfig.modelPath))
   {
+    std::cout << "Model path does not exist: " << runConfig.modelPath.string() << std::endl;
     throw std::runtime_error("Model path does not exist: " + runConfig.modelPath.string());
+  }
+  else {
+    std::cout << "Model path exists: " << runConfig.modelPath.string() << std::endl;
   }
 
   if (inputJson.contains("modelConfigPath"))
@@ -382,7 +394,11 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
   // Verify model config path exists
   if (!filesystem::exists(runConfig.modelConfigPath))
   {
+    std::cout << "Model config path does not exist: " << runConfig.modelConfigPath.string() << std::endl;
     throw std::runtime_error("Model config path does not exist: " + runConfig.modelConfigPath.string());
+  }
+  else {
+    std::cout << "Model config path exists: " << runConfig.modelConfigPath.string() << std::endl;
   }
 
   if (inputJson.contains("output_file"))
@@ -425,8 +441,13 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
   // Check if output path exists
   if (!filesystem::exists(runConfig.outputPath.value()))
   {
+    std::cout << "Output path does not exist: " << runConfig.outputPath.value().string() << std::endl;
     throw std::runtime_error("Output path does not exist: " + runConfig.outputPath.value().string());
   }
+  else {
+    std::cout << "Output path exists: " << runConfig.outputPath.value().string() << std::endl;
+  }
+
 
 
   if (inputJson.contains("speakerId"))

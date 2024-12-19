@@ -20,3 +20,13 @@ htmlcov
 
 .venv/
 lightning_logs/
+.vs/
+.vscode/
+
+**/*.Identifier
+
+**/models
+
+**/audio
+
+**/espeak**
