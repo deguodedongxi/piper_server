@@ -18,6 +18,7 @@ elseif(NOT APPLE)
 endif()
 
 add_executable(piper src/cpp/main.cpp src/cpp/piper.cpp)
+add_executable(piper_server src/cpp/server.cpp src/cpp/piper.cpp)
 add_executable(test_piper src/cpp/test.cpp src/cpp/piper.cpp)
 
 # NOTE: external project prefix are shortened because of path length restrictions on Windows

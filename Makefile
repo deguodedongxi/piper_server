@@ -11,3 +11,8 @@ docker:
 
 clean:
 	rm -rf build install dist
+
+install_deps:
+	@echo "Installing dependencies..."
+	sudo apt-get update
+	sudo apt-get install -y libssl-dev cmake
