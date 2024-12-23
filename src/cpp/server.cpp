@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <mutex>
 
 #ifdef _MSC_VER
 #define WIN32_LEAN_AND_MEAN
@@ -112,6 +113,9 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig);
 //                   condition_variable &cvAudio, bool &audioReady,
 //                   bool &audioFinished);
 
+std::mutex processingMutex;
+
+
 int main(int argc, char *argv[])
 {
   spdlog::set_default_logger(spdlog::stderr_color_st("piper"));
@@ -135,6 +139,7 @@ int main(int argc, char *argv[])
   // Define a POST route at "/echo"
   server.Post("/tts", [&modelPath, &piperConfig, &voice](const httplib::Request &req, httplib::Response &res)
   { 
+    std::lock_guard<std::mutex> lock(processingMutex);
     try {
       RunConfig runConfig;
       // // Log Body
