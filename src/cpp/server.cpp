@@ -105,6 +105,22 @@ struct RunConfig {
 
   // true to use CUDA execution provider
   bool useCuda = false;
+
+  // Additional fields
+  optional<float> semitones; // Change pitch by semitones
+  optional<float> speed; // Change speed by factor
+  optional<float> volume; // Change volume by factor
+  optional<bool> voiceImprovement; // Maybe used in the future
+  optional<bool> highFramerate; // Return Framerate in 48000Hz
+  optional<bool> telephone; // Apply telephone effect
+  optional<bool> cave; // Apply cave effect
+  optional<bool> smallCave; // Apply small cave effect
+  optional<bool> gasMask; // Apply gas mask effect
+  optional<bool> badReception; // Apply bad reception effect
+  optional<bool> nextRoom; // Apply next room effect
+  optional<bool> alien; // Apply alien effect
+  optional<bool> alien2; // Apply alien2 effect
+  optional<bool> stereo; // Apply stereo effect
 };
 
 void parseStartupArgs(int argc, char *argv[], InitConfig &initConfig);
@@ -139,7 +155,6 @@ int main(int argc, char *argv[])
   // Define a POST route at "/echo"
   server.Post("/tts", [&modelPath, &piperConfig, &voice](const httplib::Request &req, httplib::Response &res)
   { 
-    std::lock_guard<std::mutex> lock(processingMutex);
     try {
       RunConfig runConfig;
       // // Log Body
@@ -158,6 +173,7 @@ int main(int argc, char *argv[])
 
       if (modelPath != runConfig.modelPath.string())
       {
+        std::lock_guard<std::mutex> lock(processingMutex);
         auto startTime = chrono::steady_clock::now();
         modelPath = runConfig.modelPath.string();
         // std::cout << "Loading voice from " << runConfig.modelPath.string() << " (config=" << runConfig.modelConfigPath.string() << ")" << std::endl;
@@ -234,7 +250,10 @@ int main(int argc, char *argv[])
         }
       }
       
-      piper::initialize(piperConfig);
+      {
+        std::lock_guard<std::mutex> lock(processingMutex);
+        piper::initialize(piperConfig);
+      }
 
       
       // Scales
@@ -273,36 +292,39 @@ int main(int argc, char *argv[])
 
 
       piper::SynthesisResult result;
-      if (runConfig.outputType == OUTPUT_DIRECTORY || runConfig.outputType == OUTPUT_FILE) {
-        // Output audio to automatically-named WAV file in a directory
-        filesystem::path outputPath = runConfig.outputPath.value();
-        outputPath.append(runConfig.outputFile);
+      {
+        std::lock_guard<std::mutex> lock(processingMutex);
+        if (runConfig.outputType == OUTPUT_DIRECTORY || runConfig.outputType == OUTPUT_FILE) {
+          // Output audio to automatically-named WAV file in a directory
+          filesystem::path outputPath = runConfig.outputPath.value();
+          outputPath.append(runConfig.outputFile);
 
-        // log name
-        spdlog::debug("Output file: {}", outputPath.string());
+          // log name
+          spdlog::debug("Output file: {}", outputPath.string());
 
-        ofstream audioFile(outputPath.string(), ios::binary);
-        piper::textToWavFile(piperConfig, voice, runConfig.sentence, audioFile, result);
-        // Return output path to the client as json
-        json outputJson;
-        outputJson["outputPath"] = runConfig.outputPath.value().string();
-        outputJson["outputFile"] = runConfig.outputFile;
-        res.set_content(outputJson.dump(), "application/json");
-      }
-      else if (runConfig.outputType == OUTPUT_STDOUT) {
-        // Output audio to stdout
-        piper::textToWavFile(piperConfig, voice, runConfig.sentence, cout, result);
+          ofstream audioFile(outputPath.string(), ios::binary);
+          piper::textToWavFile(piperConfig, voice, runConfig.sentence, audioFile, result);
+          // Return output path to the client as json
+          json outputJson;
+          outputJson["outputPath"] = runConfig.outputPath.value().string();
+          outputJson["outputFile"] = runConfig.outputFile;
+          res.set_content(outputJson.dump(), "application/json");
+        }
+        else if (runConfig.outputType == OUTPUT_STDOUT) {
+          // Output audio to stdout
+          piper::textToWavFile(piperConfig, voice, runConfig.sentence, cout, result);
 
-        res.set_content("Audio output to stdout", "text/plain");
-      }
-      else if (runConfig.outputType == OUTPUT_RAW) {
-        // Raw output to stdout
-        stringstream buffer;
-        piper::textToWavFile(piperConfig, voice, runConfig.sentence, buffer, result);
-        res.set_content(buffer.str(), "audio/wav");
-      }
-      else {
-        throw runtime_error("Invalid output type");
+          res.set_content("Audio output to stdout", "text/plain");
+        }
+        else if (runConfig.outputType == OUTPUT_RAW) {
+          // Raw output to stdout
+          stringstream buffer;
+          piper::textToWavFile(piperConfig, voice, runConfig.sentence, buffer, result);
+          res.set_content(buffer.str(), "audio/wav");
+        }
+        else {
+          throw runtime_error("Invalid output type");
+        }
       }
 
       spdlog::info("Real-time factor: {} (infer={} sec, audio={} sec)",
@@ -496,5 +518,61 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
   if (inputJson.contains("useCuda"))
   {
     runConfig.useCuda = inputJson["useCuda"].get<bool>();
+  }
+  if (inputJson.contains("semitones"))
+  {
+    runConfig.semitones = inputJson["semitones"].get<float>();
+  }
+  if (inputJson.contains("speed"))
+  {
+    runConfig.speed = inputJson["speed"].get<float>();
+  }
+  if (inputJson.contains("volume"))
+  {
+    runConfig.volume = inputJson["volume"].get<float>();
+  }
+  if (inputJson.contains("voiceImprovement"))
+  {
+    runConfig.voiceImprovement = inputJson["voiceImprovement"].get<bool>();
+  }
+  if (inputJson.contains("highFramerate"))
+  {
+    runConfig.highFramerate = inputJson["highFramerate"].get<bool>();
+  }
+  if (inputJson.contains("telephone"))
+  {
+    runConfig.telephone = inputJson["telephone"].get<bool>();
+  }
+  if (inputJson.contains("cave"))
+  {
+    runConfig.cave = inputJson["cave"].get<bool>();
+  }
+  if (inputJson.contains("smallCave"))
+  {
+    runConfig.smallCave = inputJson["smallCave"].get<bool>();
+  }
+  if (inputJson.contains("gasMask"))
+  {
+    runConfig.gasMask = inputJson["gasMask"].get<bool>();
+  }
+  if (inputJson.contains("badReception"))
+  {
+    runConfig.badReception = inputJson["badReception"].get<bool>();
+  }
+  if (inputJson.contains("nextRoom"))
+  {
+    runConfig.nextRoom = inputJson["nextRoom"].get<bool>();
+  }
+  if (inputJson.contains("alien"))
+  {
+    runConfig.alien = inputJson["alien"].get<bool>();
+  }
+  if (inputJson.contains("alien2"))
+  {
+    runConfig.alien2 = inputJson["alien2"].get<bool>();
+  }
+  if (inputJson.contains("stereo"))
+  {
+    runConfig.stereo = inputJson["stereo"].get<bool>();
   }
 }

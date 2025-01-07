@@ -12,7 +12,7 @@ payload = [json.dumps({
     "output_file": f"output_file_{i}",
     "sentence": f"Test sentence {i}",
     # "outputType": "OUTPUT_RAW"
-}) for i in range(10)]
+}) for i in range(30)]
 headers = {
     'Content-Type': 'application/json'
 }
@@ -21,13 +21,13 @@ async def make_request(session, element):
     try:
         async with session.post(url, data=payload[element], headers=headers) as response:
             # Optionally, log or process the response
-            print(f"Request sent with status: {response.status}")
+            print(f"Request sent with status: {response.status} - {element}")
     except Exception as e:
         print(f"An error occurred: {e}")
 
 async def main():
     async with aiohttp.ClientSession() as session:
-        tasks = [make_request(session, i) for i in range(10)]
+        tasks = [make_request(session, i) for i in range(30)]
         # Await tasks to ensure they complete before closing the session
         await asyncio.gather(*tasks)
 
