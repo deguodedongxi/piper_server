@@ -15,4 +15,4 @@ clean:
 install_deps:
 	@echo "Installing dependencies..."
 	sudo apt-get update
-	sudo apt-get install -y libssl-dev cmake
+	sudo apt-get install -y libssl-dev cmake install libeigen3-dev libsoundtouch-dev
