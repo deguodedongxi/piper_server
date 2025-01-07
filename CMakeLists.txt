@@ -74,6 +74,18 @@ if(NOT DEFINED PIPER_PHONEMIZE_DIR)
   add_dependencies(test_piper piper_phonemize_external)
 endif()
 
+# ---- libeigen3-dev ----
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+if(NOT DEFINED LIBEIGEN_DIR)
+  set(LIBEIGEN_DIR "/usr/include/eigen3")
+  include_directories(${LIBEIGEN_DIR})
+endif()
+
+# ---- SoundTouch ----
+
+set(SOUNDTOUCH_INCLUDE_DIRS "/usr/lib/x86_64-linux-gnu/")
+include_directories(${SOUNDTOUCH_INCLUDE_DIRS})
+
 # ---- Declare executable ----
 
 if((NOT MSVC) AND (NOT APPLE))
@@ -92,6 +104,7 @@ target_link_libraries(piper
   espeak-ng
   piper_phonemize
   onnxruntime
+  SoundTouch
   ${PIPER_EXTRA_LIBRARIES}
 )
 
@@ -105,6 +118,8 @@ target_include_directories(piper PUBLIC
   ${FMT_DIR}/include
   ${SPDLOG_DIR}/include
   ${PIPER_PHONEMIZE_DIR}/include
+  ${LIBEIGEN_DIR}
+  ${SOUNDTOUCH_INCLUDE_DIRS}
 )
 
 target_compile_definitions(piper PUBLIC _PIPER_VERSION=${piper_version})
@@ -116,6 +131,7 @@ target_link_libraries(piper_server
   espeak-ng
   piper_phonemize
   onnxruntime
+  SoundTouch
   ${PIPER_EXTRA_LIBRARIES}
 )
 
@@ -123,12 +139,16 @@ target_link_directories(piper_server PUBLIC
   ${FMT_DIR}/lib
   ${SPDLOG_DIR}/lib
   ${PIPER_PHONEMIZE_DIR}/lib
+  ${LIBEIGEN_DIR}
+  ${SOUNDTOUCH_INCLUDE_DIRS}
 )
 
 target_include_directories(piper_server PUBLIC
   ${FMT_DIR}/include
   ${SPDLOG_DIR}/include
   ${PIPER_PHONEMIZE_DIR}/include
+  ${LIBEIGEN_DIR}
+  ${SOUNDTOUCH_INCLUDE_DIRS}
 )
 
 target_compile_definitions(piper_server PUBLIC _PIPER_VERSION=${piper_version})
@@ -148,6 +168,8 @@ target_include_directories(
   ${FMT_DIR}/include
   ${SPDLOG_DIR}/include
   ${PIPER_PHONEMIZE_DIR}/include
+  ${LIBEIGEN_DIR}
+  ${SOUNDTOUCH_INCLUDE_DIRS}
 )
 
 target_link_directories(
@@ -155,6 +177,8 @@ target_link_directories(
   ${FMT_DIR}/lib
   ${SPDLOG_DIR}/lib
   ${PIPER_PHONEMIZE_DIR}/lib
+  ${LIBEIGEN_DIR}
+  ${SOUNDTOUCH_INCLUDE_DIRS}
 )
 
 target_link_libraries(test_piper PUBLIC
@@ -163,6 +187,8 @@ target_link_libraries(test_piper PUBLIC
   espeak-ng
   piper_phonemize
   onnxruntime
+  SoundTouch
+  Eigen3::Eigen
 )
 
 # ---- Declare install targets ----
@@ -234,5 +260,3 @@ install(
   FILES ${PIPER_PHONEMIZE_DIR}/share/libtashkeel_model.ort
   DESTINATION ${CMAKE_INSTALL_PREFIX}
 )
-
-

@@ -34,6 +34,23 @@ struct PiperConfig {
   std::unique_ptr<tashkeel::State> tashkeelState;
 };
 
+struct AudioEffects {
+  float speed = 1.0f; // Change speed by factor
+  float volume = 0.0f; // Change volume by factor
+  float semitones = 0.0f; // Change pitch by semitones
+  bool voiceImprovement = false; // Maybe used in the future
+  bool highFramerate = false; // Return Framerate in 48000Hz
+  bool telephone = false; // Apply telephone effect
+  bool cave = false; // Apply cave effect
+  bool smallCave = false; // Apply small cave effect
+  bool gasMask = false; // Apply gas mask effect
+  bool badReception = false; // Apply bad reception effect
+  bool nextRoom = false; // Apply next room effect
+  bool alien = false; // Apply alien effect
+  bool alien2 = false; // Apply alien2 effect
+  bool stereo = false; // Apply stereo effect
+};
+
 enum PhonemeType { eSpeakPhonemes, TextPhonemes };
 
 struct PhonemizeConfig {
@@ -74,6 +91,8 @@ struct ModelConfig {
   // speaker name -> id
   std::optional<std::map<std::string, SpeakerId>> speakerIdMap;
 };
+
+
 
 struct ModelSession {
   Ort::Session onnx;
@@ -124,7 +143,7 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
                  const std::function<void()> &audioCallback);
 
 // Phonemize text and synthesize audio to WAV file
-void textToWavFile(PiperConfig &config, Voice &voice, std::string text,
+void textToWavFile(PiperConfig &config, Voice &voice, std::string text, AudioEffects &effects,
                    std::ostream &audioFile, SynthesisResult &result);
 
 } // namespace piper

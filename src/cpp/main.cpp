@@ -166,6 +166,8 @@ int main(int argc, char *argv[]) {
     piperConfig.useESpeak = false;
   }
 
+  piper::AudioEffects effects;
+
   // Enable libtashkeel for Arabic
   if (voice.phonemizeConfig.eSpeak.voice == "ar") {
     piperConfig.useTashkeel = true;
@@ -279,7 +281,7 @@ int main(int argc, char *argv[]) {
 
       // Output audio to automatically-named WAV file in a directory
       ofstream audioFile(outputPath.string(), ios::binary);
-      piper::textToWavFile(piperConfig, voice, line, audioFile, result);
+      piper::textToWavFile(piperConfig, voice, line, effects, audioFile, result);
       cout << outputPath.string() << endl;
     } else if (outputType == OUTPUT_FILE) {
       if (!maybeOutputPath || maybeOutputPath->empty()) {
@@ -302,11 +304,11 @@ int main(int argc, char *argv[]) {
 
       // Output audio to WAV file
       ofstream audioFile(outputPath.string(), ios::binary);
-      piper::textToWavFile(piperConfig, voice, line, audioFile, result);
+      piper::textToWavFile(piperConfig, voice, line, effects, audioFile, result);
       cout << outputPath.string() << endl;
     } else if (outputType == OUTPUT_STDOUT) {
       // Output WAV to stdout
-      piper::textToWavFile(piperConfig, voice, line, cout, result);
+      piper::textToWavFile(piperConfig, voice, line, effects, cout, result);
     } else if (outputType == OUTPUT_RAW) {
       // Raw output to stdout
       mutex mutAudio;

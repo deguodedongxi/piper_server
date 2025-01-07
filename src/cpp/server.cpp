@@ -46,6 +46,8 @@ enum OutputType
   OUTPUT_RAW
 };
 
+
+
 struct InitConfig {
   optional<string> port = "8080";
 };
@@ -105,26 +107,10 @@ struct RunConfig {
 
   // true to use CUDA execution provider
   bool useCuda = false;
-
-  // Additional fields
-  optional<float> semitones; // Change pitch by semitones
-  optional<float> speed; // Change speed by factor
-  optional<float> volume; // Change volume by factor
-  optional<bool> voiceImprovement; // Maybe used in the future
-  optional<bool> highFramerate; // Return Framerate in 48000Hz
-  optional<bool> telephone; // Apply telephone effect
-  optional<bool> cave; // Apply cave effect
-  optional<bool> smallCave; // Apply small cave effect
-  optional<bool> gasMask; // Apply gas mask effect
-  optional<bool> badReception; // Apply bad reception effect
-  optional<bool> nextRoom; // Apply next room effect
-  optional<bool> alien; // Apply alien effect
-  optional<bool> alien2; // Apply alien2 effect
-  optional<bool> stereo; // Apply stereo effect
 };
 
 void parseStartupArgs(int argc, char *argv[], InitConfig &initConfig);
-void parseArgsFromJson(const json &inputJson, RunConfig &runConfig);
+void parseArgsFromJson(const json &inputJson, RunConfig&runConfig, piper::AudioEffects &effects);
 // void rawOutputProc(vector<int16_t> &sharedAudioBuffer, mutex &mutAudio,
 //                   condition_variable &cvAudio, bool &audioReady,
 //                   bool &audioFinished);
@@ -157,10 +143,14 @@ int main(int argc, char *argv[])
   { 
     try {
       RunConfig runConfig;
+      piper::AudioEffects effects;
       // // Log Body
       // std::cout << "Request body: " << req.body << std::endl;
-      parseArgsFromJson(json::parse(req.body), runConfig);
+      parseArgsFromJson(json::parse(req.body), runConfig, effects);
 
+      // spdlog::debug("Run Config: {}", runConfig);
+      // spdlog::debug("Effects: {}", effects);
+      
       #ifdef _WIN32
         // Required on Windows to show IPA symbols
         SetConsoleOutputCP(CP_UTF8);
@@ -303,7 +293,7 @@ int main(int argc, char *argv[])
           spdlog::debug("Output file: {}", outputPath.string());
 
           ofstream audioFile(outputPath.string(), ios::binary);
-          piper::textToWavFile(piperConfig, voice, runConfig.sentence, audioFile, result);
+          piper::textToWavFile(piperConfig, voice, runConfig.sentence, effects, audioFile, result);
           // Return output path to the client as json
           json outputJson;
           outputJson["outputPath"] = runConfig.outputPath.value().string();
@@ -312,14 +302,14 @@ int main(int argc, char *argv[])
         }
         else if (runConfig.outputType == OUTPUT_STDOUT) {
           // Output audio to stdout
-          piper::textToWavFile(piperConfig, voice, runConfig.sentence, cout, result);
+          piper::textToWavFile(piperConfig, voice, runConfig.sentence, effects, cout, result);
 
           res.set_content("Audio output to stdout", "text/plain");
         }
         else if (runConfig.outputType == OUTPUT_RAW) {
           // Raw output to stdout
           stringstream buffer;
-          piper::textToWavFile(piperConfig, voice, runConfig.sentence, buffer, result);
+          piper::textToWavFile(piperConfig, voice, runConfig.sentence, effects, buffer, result);
           res.set_content(buffer.str(), "audio/wav");
         }
         else {
@@ -334,8 +324,8 @@ int main(int argc, char *argv[])
       
     } catch (const std::exception &e) {
       std::cout << "Error: " << e.what() << std::endl;
-      res.status = 500;
-      res.set_content("Internal Server Error", "text/plain");
+      res.status = 400;
+      res.set_content("Error: " + string(e.what()), "text/plain");
     }
   });
 
@@ -391,7 +381,7 @@ void parseStartupArgs(int argc, char *argv[], InitConfig &initConfig) {
   }
 }
 
-void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
+void parseArgsFromJson(const json &inputJson, RunConfig &runConfig, piper::AudioEffects &effects)
 {
   if (inputJson.contains("sentence"))
   {
@@ -521,58 +511,58 @@ void parseArgsFromJson(const json &inputJson, RunConfig &runConfig)
   }
   if (inputJson.contains("semitones"))
   {
-    runConfig.semitones = inputJson["semitones"].get<float>();
+    effects.semitones = inputJson["semitones"].get<float>();
   }
   if (inputJson.contains("speed"))
   {
-    runConfig.speed = inputJson["speed"].get<float>();
+    effects.speed = inputJson["speed"].get<float>();
   }
   if (inputJson.contains("volume"))
   {
-    runConfig.volume = inputJson["volume"].get<float>();
+    effects.volume = inputJson["volume"].get<float>();
   }
   if (inputJson.contains("voiceImprovement"))
   {
-    runConfig.voiceImprovement = inputJson["voiceImprovement"].get<bool>();
+    effects.voiceImprovement = inputJson["voiceImprovement"].get<bool>();
   }
   if (inputJson.contains("highFramerate"))
   {
-    runConfig.highFramerate = inputJson["highFramerate"].get<bool>();
+    effects.highFramerate = inputJson["highFramerate"].get<bool>();
   }
   if (inputJson.contains("telephone"))
   {
-    runConfig.telephone = inputJson["telephone"].get<bool>();
+    effects.telephone = inputJson["telephone"].get<bool>();
   }
   if (inputJson.contains("cave"))
   {
-    runConfig.cave = inputJson["cave"].get<bool>();
+    effects.cave = inputJson["cave"].get<bool>();
   }
   if (inputJson.contains("smallCave"))
   {
-    runConfig.smallCave = inputJson["smallCave"].get<bool>();
+    effects.smallCave = inputJson["smallCave"].get<bool>();
   }
   if (inputJson.contains("gasMask"))
   {
-    runConfig.gasMask = inputJson["gasMask"].get<bool>();
+    effects.gasMask = inputJson["gasMask"].get<bool>();
   }
   if (inputJson.contains("badReception"))
   {
-    runConfig.badReception = inputJson["badReception"].get<bool>();
+    effects.badReception = inputJson["badReception"].get<bool>();
   }
   if (inputJson.contains("nextRoom"))
   {
-    runConfig.nextRoom = inputJson["nextRoom"].get<bool>();
+    effects.nextRoom = inputJson["nextRoom"].get<bool>();
   }
   if (inputJson.contains("alien"))
   {
-    runConfig.alien = inputJson["alien"].get<bool>();
+    effects.alien = inputJson["alien"].get<bool>();
   }
   if (inputJson.contains("alien2"))
   {
-    runConfig.alien2 = inputJson["alien2"].get<bool>();
+    effects.alien2 = inputJson["alien2"].get<bool>();
   }
   if (inputJson.contains("stereo"))
   {
-    runConfig.stereo = inputJson["stereo"].get<bool>();
+    effects.stereo = inputJson["stereo"].get<bool>();
   }
 }

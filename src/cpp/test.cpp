@@ -43,8 +43,9 @@ int main(int argc, char *argv[]) {
   // Output audio to WAV file
   ofstream audioFile(outputPath, ios::binary);
 
+  piper::AudioEffects effects;
   piper::SynthesisResult result;
-  piper::textToWavFile(piperConfig, voice, "This is a test.", audioFile,
+  piper::textToWavFile(piperConfig, voice, "This is a test.", effects, audioFile,
                        result);
   piper::terminate(piperConfig);
 
