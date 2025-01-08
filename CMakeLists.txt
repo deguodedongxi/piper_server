@@ -88,19 +88,60 @@ if(NOT DEFINED SOUNDTOUCH_DIR)
 endif()
 
 
-# ---- libeigen3-dev ----
+# Set Eigen directory
 if(NOT DEFINED LIBEIGEN_DIR)
   if(WIN32)
-    set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${CMAKE_SOURCE_DIR}/eigen3")
-    find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+    # Set the directory for Eigen
     set(LIBEIGEN_DIR "${CMAKE_SOURCE_DIR}/eigen3")
-  else()
-    set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/usr/include/eigen3/include")
-    find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-      set(LIBEIGEN_DIR "/usr/include/eigen3")
+
+    # Check if Eigen is already downloaded
+    if(NOT EXISTS "${LIBEIGEN_DIR}/CMakeLists.txt")
+      # Download Eigen
+      message(STATUS "Downloading Eigen...")
+      file(DOWNLOAD 
+        "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip"
+        "${CMAKE_SOURCE_DIR}/eigen-3.4.0.zip"
+        SHOW_PROGRESS
+      )
+
+      # Extract Eigen
+      message(STATUS "Extracting Eigen...")
+      execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf "${CMAKE_SOURCE_DIR}/eigen-3.4.0.zip"
+                      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+      execute_process(COMMAND ${CMAKE_COMMAND} -E rename
+                      "${CMAKE_SOURCE_DIR}/eigen-3.4.0"
+                      "${LIBEIGEN_DIR}")
+      if(NOT EXISTS "${LIBEIGEN_DIR}/build")
+        message(STATUS "Building Eigen...")
+        file(MAKE_DIRECTORY "${LIBEIGEN_DIR}/build")
+        execute_process(
+          COMMAND ${CMAKE_COMMAND} -S "${LIBEIGEN_DIR}" -B "${LIBEIGEN_DIR}/build"
+          WORKING_DIRECTORY "${LIBEIGEN_DIR}"
+        )
+        # execute_process(
+        #   COMMAND ${CMAKE_COMMAND} --build "${LIBEIGEN_DIR}/build" --config Release
+        #   WORKING_DIRECTORY "${LIBEIGEN_DIR}/build"
+        # )
+      endif()
     endif()
-    include_directories(${LIBEIGEN_DIR})
+
+    # Add Eigen include directory
+    set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${LIBEIGEN_DIR}")
+    find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+
+  else()
+    # Linux or other systems
+    set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH} /usr/include/eigen3/include")
+    find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+    set(LIBEIGEN_DIR "/usr/include/eigen3")
+  endif()
+
+  # Add Eigen to the include directories
+  include_directories(${LIBEIGEN_DIR})
 endif()
+
+# Add a message for confirmation
+message(STATUS "Using Eigen from: ${LIBEIGEN_DIR}")
 
 # # ---- SoundTouch ----
 # if(WIN32)
