@@ -71,10 +71,6 @@ jobs:
         arch: [x64]
     steps:
       - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libssl-dev cmake libeigen3-dev libsoundtouch-dev
       - name: configure
         run: |
           cmake -Bbuild -DCMAKE_INSTALL_PREFIX=_install/piper

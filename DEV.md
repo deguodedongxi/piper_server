@@ -8,7 +8,7 @@
 ```CMD
 cd build
 
-./piper_server --port 8080 -m  "../models/Alan.onnx" --debug
+./piper_server --port 8080
 
 ``` 
 > Run this command in the `build` directory to run the project.
