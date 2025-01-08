@@ -74,17 +74,57 @@ if(NOT DEFINED PIPER_PHONEMIZE_DIR)
   add_dependencies(test_piper piper_phonemize_external)
 endif()
 
+if(NOT DEFINED SOUNDTOUCH_DIR)
+  set(SOUNDTOUCH_DIR "${CMAKE_CURRENT_BINARY_DIR}/so")
+  ExternalProject_Add(
+    soundtouch_external
+    PREFIX "${CMAKE_CURRENT_BINARY_DIR}/so"
+    URL "https://gitlab.com/soundtouch/soundtouch/-/archive/2.3.1/soundtouch-2.3.1.zip"
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${SOUNDTOUCH_DIR}
+  )
+  add_dependencies(piper soundtouch_external)
+  add_dependencies(piper_server soundtouch_external)
+  add_dependencies(test_piper soundtouch_external)
+endif()
+
 # ---- libeigen3-dev ----
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 if(NOT DEFINED LIBEIGEN_DIR)
-  set(LIBEIGEN_DIR "/usr/include/eigen3")
+if(WIN32)
+  set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${CMAKE_SOURCE_DIR}/eigen3")
+  find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+  set(LIBEIGEN_DIR "${CMAKE_SOURCE_DIR}/eigen3")
+else()
+  set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/usr/include/eigen3/include")
+  find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+    set(LIBEIGEN_DIR "/usr/include/eigen3")
+  endif()
   include_directories(${LIBEIGEN_DIR})
 endif()
 
-# ---- SoundTouch ----
+# # ---- SoundTouch ----
+# if(WIN32)
+#   set(SOUNDTOUCH_DIR "${CMAKE_SOURCE_DIR}/soundtouch")
+#   include_directories(${SOUNDTOUCH_DIR}/include)
+#   link_directories(${SOUNDTOUCH_DIR}/lib)
+#   find_package(SoundTouch REQUIRED)
+#   find_package(SoundTouch)
+#   if(SOUNDTOUCH_FOUND)
+#     message(STATUS "SoundTouch found!")
+#   else()
+#     message(STATUS "SoundTouch not found!")
+#   endif()
+# else()
+#   find_package(SoundTouch REQUIRED)
+#   set(SOUNDTOUCH_LIB SoundTouch)
+# endif()
 
-set(SOUNDTOUCH_INCLUDE_DIRS "/usr/lib/x86_64-linux-gnu/")
-include_directories(${SOUNDTOUCH_INCLUDE_DIRS})
+# message(STATUS "SoundTouch include directory: ${SOUNDTOUCH_DIR}/include")
+# message(STATUS "SoundTouch library directory: ${SOUNDTOUCH_DIR}/lib")
+
+
+
+target_link_libraries(${PROJECT_NAME} ${SOUNDTOUCH_LIB})
+# target_link_libraries(${PROJECT_NAME} ${SOUNDTOUCH_INCLUDE_DIR})
 
 # ---- Declare executable ----
 
@@ -111,6 +151,7 @@ target_link_libraries(piper
 target_link_directories(piper PUBLIC
   ${FMT_DIR}/lib
   ${SPDLOG_DIR}/lib
+  ${SOUNDTOUCH_DIR}/lib
   ${PIPER_PHONEMIZE_DIR}/lib
 )
 
@@ -119,7 +160,7 @@ target_include_directories(piper PUBLIC
   ${SPDLOG_DIR}/include
   ${PIPER_PHONEMIZE_DIR}/include
   ${LIBEIGEN_DIR}
-  ${SOUNDTOUCH_INCLUDE_DIRS}
+  ${SOUNDTOUCH_DIR}/include
 )
 
 target_compile_definitions(piper PUBLIC _PIPER_VERSION=${piper_version})
@@ -140,7 +181,7 @@ target_link_directories(piper_server PUBLIC
   ${SPDLOG_DIR}/lib
   ${PIPER_PHONEMIZE_DIR}/lib
   ${LIBEIGEN_DIR}
-  ${SOUNDTOUCH_INCLUDE_DIRS}
+  ${SOUNDTOUCH_DIR}/lib
 )
 
 target_include_directories(piper_server PUBLIC
@@ -148,7 +189,7 @@ target_include_directories(piper_server PUBLIC
   ${SPDLOG_DIR}/include
   ${PIPER_PHONEMIZE_DIR}/include
   ${LIBEIGEN_DIR}
-  ${SOUNDTOUCH_INCLUDE_DIRS}
+  ${SOUNDTOUCH_DIR}/include
 )
 
 target_compile_definitions(piper_server PUBLIC _PIPER_VERSION=${piper_version})
@@ -169,7 +210,7 @@ target_include_directories(
   ${SPDLOG_DIR}/include
   ${PIPER_PHONEMIZE_DIR}/include
   ${LIBEIGEN_DIR}
-  ${SOUNDTOUCH_INCLUDE_DIRS}
+  ${SOUNDTOUCH_DIR}/include
 )
 
 target_link_directories(
@@ -178,7 +219,7 @@ target_link_directories(
   ${SPDLOG_DIR}/lib
   ${PIPER_PHONEMIZE_DIR}/lib
   ${LIBEIGEN_DIR}
-  ${SOUNDTOUCH_INCLUDE_DIRS}
+  ${SOUNDTOUCH_DIR}/lib
 )
 
 target_link_libraries(test_piper PUBLIC
