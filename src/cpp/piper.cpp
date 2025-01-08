@@ -1015,34 +1015,42 @@ namespace piper
     }
     if (effects.cave)
     {
+      spdlog::debug("Applying cave effect");
       cave_effect(audioBuffer);
     }
     if (effects.smallCave)
     {
+      spdlog::debug("Applying small cave effect");
       small_cave_effect(audioBuffer);
     }
     if (effects.gasMask)
     {
+      spdlog::debug("Applying gas mask effect");
       gas_mask_effect(audioBuffer);
     }
     if (effects.badReception)
     {
+      spdlog::debug("Applying bad reception effect");
       bad_reception_effect(audioBuffer);
     }
     if (effects.nextRoom)
     {
+      spdlog::debug("Applying next room effect");
       next_room_effect(audioBuffer);
     }
     if (effects.alien)
     {
+      spdlog::debug("Applying alien effect");
       alien_effect(audioBuffer);
     }
     if (effects.alien2)
     {
+      spdlog::debug("Applying alien2 effect");
       alien2_effect(audioBuffer);
     }
     if (effects.stereo)
     {
+      spdlog::debug("Applying stereo effect");
       stereo_effect(audioBuffer);
     }
   }
