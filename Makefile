@@ -1,6 +1,6 @@
 .PHONY: clean docker install_deps
 
-all:
+all: install_deps
 	@echo "Building..."
 	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=install
 	cmake --build build --config Release
