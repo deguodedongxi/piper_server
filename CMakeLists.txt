@@ -145,6 +145,7 @@ target_link_libraries(piper
   piper_phonemize
   onnxruntime
   SoundTouch
+  Eigen3::Eigen
   ${PIPER_EXTRA_LIBRARIES}
 )
 
@@ -173,6 +174,7 @@ target_link_libraries(piper_server
   piper_phonemize
   onnxruntime
   SoundTouch
+  Eigen3::Eigen
   ${PIPER_EXTRA_LIBRARIES}
 )
 
