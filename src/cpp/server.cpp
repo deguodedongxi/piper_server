@@ -31,12 +31,22 @@
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
 #include "json.hpp"
 #include "piper.hpp"
 
 using namespace std;
 using json = nlohmann::json;
+
+struct common_params {
+    // server params
+    std::string port           = "8080";         // server listens on this network port
+    int32_t timeout_read   = 60;          // http read timeout in seconds
+    int32_t timeout_write  = timeout_read; // http write timeout in seconds
+    int32_t n_threads_http = -1;           // number of threads to process HTTP requests (TODO: support threadpool)
+};
+common_params params;
 
 enum OutputType
 {
@@ -49,7 +59,7 @@ enum OutputType
 
 
 struct InitConfig {
-  optional<string> port = "8080";
+  optional<string> port = params.port;
 };
 
 struct RunConfig {
@@ -120,13 +130,36 @@ std::mutex processingMutex;
 
 int main(int argc, char *argv[])
 {
-  spdlog::set_default_logger(spdlog::stderr_color_st("piper"));
+  // Create an HTTP server instance
+  httplib::Server server;
 
+  // std::unique_ptr<httplib::Server> server;
+  // Create a console sink
+  auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+  console_sink->set_level(spdlog::level::info);
+  console_sink->set_pattern("[%H:%M:%S] [%^%L%$] %v");
+
+  // Create a file sink
+  auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("logs/piper_log.txt", true);
+  file_sink->set_level(spdlog::level::debug);
+  file_sink->set_pattern("[%H:%M:%S] [%L] %v");
+  
+  // Create a multi-sink logger
+  std::vector<spdlog::sink_ptr> sinks {console_sink, file_sink};
+  auto logger = std::make_shared<spdlog::logger>("piper", sinks.begin(), sinks.end());
+  logger->set_level(spdlog::level::debug);
+  logger->set_pattern("[%H:%M:%S] [%L] %v");
+  // spdlog::flush_on(spdlog::level::debug);
+  spdlog::set_default_logger(logger);
+
+  server.set_default_headers({{"Server", "piper_server.cpp"}});
+  // // set timeouts and change hostname and port
+  server.set_read_timeout (params.timeout_read);
+  server.set_write_timeout(params.timeout_write);
+  spdlog::flush_on(spdlog::level::debug);
   InitConfig initConfig;
   parseStartupArgs(argc, argv, initConfig);
 
-  // Create an HTTP server instance
-  httplib::Server server;
 
   std::string modelPath;
   piper::PiperConfig piperConfig;
@@ -171,7 +204,7 @@ int main(int argc, char *argv[])
                     runConfig.modelConfigPath.string(), voice, runConfig.speakerId,
                     runConfig.useCuda);
         auto endTime = chrono::steady_clock::now();
-        // std::cout << "Loaded onnx model in " << std::chrono::duration<double>(endTime - startTime).count() << " second(s)" << std::endl;
+        spdlog::info("Loaded onnx model in {} second(s)", std::chrono::duration<double>(endTime - startTime).count());
       }
       // else
       // {
@@ -264,6 +297,9 @@ int main(int argc, char *argv[])
             runConfig.sentenceSilenceSeconds.value();
       }
 
+      spdlog::debug("Synthesis config: noiseScale={}, lengthScale={}, noiseW={}, sentenceSilenceSeconds={}",
+                    voice.synthesisConfig.noiseScale, voice.synthesisConfig.lengthScale,
+                    voice.synthesisConfig.noiseW, voice.synthesisConfig.sentenceSilenceSeconds);
       if (runConfig.phonemeSilenceSeconds) {
         if (!voice.synthesisConfig.phonemeSilenceSeconds) {
           // Overwrite
@@ -279,7 +315,15 @@ int main(int argc, char *argv[])
         }
 
       } // if phonemeSilenceSeconds
-
+      if (voice.synthesisConfig.phonemeSilenceSeconds) {
+        std::stringstream ss;
+        for (const auto& [phoneme, silenceSeconds] : *voice.synthesisConfig.phonemeSilenceSeconds) {
+          ss << phoneme << ": " << silenceSeconds << ", ";
+        }
+        spdlog::debug("Phoneme silence seconds: {}", ss.str());
+      } else {
+        spdlog::debug("Phoneme silence seconds: none");
+      }
 
       piper::SynthesisResult result;
       {
@@ -323,7 +367,13 @@ int main(int argc, char *argv[])
       
       
     } catch (const std::exception &e) {
-      std::cout << "Error: " << e.what() << std::endl;
+      spdlog::error("Error: {}", e.what());
+
+      // Resetting variables
+      modelPath = "";
+      piper::terminate(piperConfig);
+
+
       res.status = 400;
       res.set_content("Error: " + string(e.what()), "text/plain");
     }
